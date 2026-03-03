@@ -28,7 +28,7 @@ screenshots/
 thread_dumps.txt
 # C extensions
 *.so
-*.bat
+
 
 # Distribution / packaging
 .Python
@@ -55,7 +55,6 @@ venv/
 .venv/
 python/
 .python-version
-pyproject.toml
 uv.lock
 CLAUDE.md
 

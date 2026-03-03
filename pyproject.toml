@@ -1,0 +1,49 @@
+[project]
+name = "ok-duet-night-abyss"
+version = "0.1.0"
+description = "OK Duet Night Abyss Script Project"
+readme = "README.md"
+requires-python = "=3.12"
+dependencies = [
+    "certifi==2026.1.4",
+    "charset-normalizer==3.4.4",
+    "comtypes==1.4.15",
+    "darkdetect==0.8.0",
+    "greenlet==3.3.1",
+    "idna==3.11",
+    "mouse==0.7.1",
+    "numpy==2.3.5",
+    "ok-script==1.0.39",
+    "onnxocr-ppocrv4==0.0.5",
+    "opencv-python==4.13.0.90",
+    "openvino-telemetry==2025.2.0",
+    "openvino==2025.4.1",
+    "packaging==25.0",
+    "pillow==12.1.0",
+    "playwright==1.57.0",
+    "psutil==7.2.1",
+    "pyappify==1.0.2",
+    "pycaw==20240210",
+    "pyclipper==1.4.0",
+    "pydirectinput==1.0.4",
+    "pyee==13.0.0",
+    "pynput==1.8.1",
+    "pyside6-addons==6.10.1",
+    "pyside6-essentials==6.10.1",
+    "pyside6-fluent-widgets==1.8.3",
+    "pyside6==6.10.1",
+    "pysidesix-frameless-window==0.7.7",
+    "pywin32==311",
+    "requests==2.32.5",
+    "shapely==2.1.2",
+    "shiboken6==6.10.1",
+    "six==1.17.0",
+    "typing-extensions==4.15.0",
+    "urllib3==2.6.3"
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]

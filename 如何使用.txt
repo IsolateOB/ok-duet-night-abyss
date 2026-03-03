@@ -1,0 +1,22 @@
+下载git
+https://github.com/git-for-windows/git/releases/latest
+Assets 中选择 Git-x.xx.x-64-bit.exe 下载并安装
+
+在你想要安装的文件夹下，在文件夹内的空白处点击右键，在弹出的菜单中直接选择“在终端中打开”（Open in Terminal），复制输入以下命令后回车，下载我的修完bug的分支版本代码文件
+git clone https://github.com/IsolateOB/ok-duet-night-abyss
+如果想下载作者原版，使用
+git clone https://github.com/BnanZ0/ok-duet-night-abyss
+
+复制输入以下命令后回车，安装uv（python的包管理器）
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+复制输入以下命令后回车，安装python和相关依赖
+uv sync
+
+今后使用只需要用管理员权限运行 run.bat 即可，可以把run.bat发送到桌面快捷方式并右键点击属性，选择 高级，勾选“以管理员身份运行此程序”
+
+如果需要更新，在已安装的文件夹下，在文件夹内的空白处点击右键，在弹出的菜单中直接选择“在终端中打开”（Open in Terminal），复制输入以下命令后回车，更新代码文件
+git pull
+
+
+
