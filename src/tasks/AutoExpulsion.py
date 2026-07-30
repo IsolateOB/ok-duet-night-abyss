@@ -61,9 +61,6 @@ class AutoExpulsion(DNAOneTimeTask, CommissionsTask, BaseCombatTask):
         self.load_char()
         self.count = 0
         while True:
-            if self.in_team():
-                self.handle_in_mission()
-
             _status = self.handle_mission_interface(stop_func=self.stop_func)
             if _status == Mission.START:
                 self.wait_until(self.in_team, time_out=30)
@@ -72,7 +69,11 @@ class AutoExpulsion(DNAOneTimeTask, CommissionsTask, BaseCombatTask):
             elif _status == Mission.STOP:
                 pass
             elif _status == Mission.CONTINUE:
-                pass
+                self.init_for_next_round()
+                self.skill_tick.reset()
+
+            if self.in_team():
+                self.handle_in_mission()
 
             self.sleep(0.1)
 

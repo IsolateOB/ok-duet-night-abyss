@@ -1,4 +1,5 @@
 import time
+import re
 from typing import Protocol, Callable, Union
 import numpy as np
 import cv2
@@ -294,8 +295,33 @@ class BaseDNATask(BaseTask):
             self.next_monthly_card_start = 0
             logger.info('set next monthly card start to {}'.format(self.next_monthly_card_start))
 
+    def find_monthly_card_close_hint(self):
+        box = self.box_of_screen_scaled(
+            2560, 1440, 1180, 1260, 1375, 1290,
+            name="monthly_card_close_hint", hcenter=True
+        )
+        texts = self.ocr(
+            box=box,
+            match=re.compile(r"点击\s*空白\s*区域\s*关闭"),
+        )
+        return texts[0] if texts else None
+
+    def find_monthly_card_attendance(self):
+        box = self.box_of_screen_scaled(
+            2560, 1440, 1555, 315, 2020, 380,
+            name="monthly_card_attendance", hcenter=True
+        )
+        texts = self.ocr(
+            box=box,
+            match=re.compile(r"水仙\s*平原\s*出勤\s*积累"),
+        )
+        return texts[0] if texts else None
+
     def handle_monthly_card(self):
-        monthly_card = self.find_one('monthly_card', threshold=0.8)
+        monthly_card = (
+            self.find_monthly_card_close_hint()
+            or self.find_monthly_card_attendance()
+        )
         if not hasattr(self, '_last_monthly_card_check_time'):
             self._last_monthly_card_check_time = 0
         now = time.time()
@@ -304,9 +330,32 @@ class BaseDNATask(BaseTask):
             self.screenshot('monthly_card1')
         ret = monthly_card is not None
         if ret:
-            self.wait_until(self.in_team, time_out=10,
-                            post_action=lambda: self.click_relative(0.50, 0.89, after_sleep=1))
-            self.set_check_monthly_card(next_day=True)
+            click_x = self.width_of_screen(2090 / 2560)
+            click_y = self.height_of_screen(370 / 1440)
+
+            def monthly_card_disappeared():
+                return not (
+                    self.find_monthly_card_close_hint()
+                    or self.find_monthly_card_attendance()
+                )
+
+            closed = self.wait_until(
+                condition=monthly_card_disappeared,
+                post_action=lambda: self._perform_random_click(
+                    click_x,
+                    click_y,
+                    down_time=0.1,
+                    after_sleep=0.5,
+                    force_background=True,
+                ),
+                time_out=30,
+                settle_time=1,
+                raise_if_not_found=False,
+            )
+            if closed:
+                self.set_check_monthly_card(next_day=True)
+            else:
+                logger.info('monthly card close timeout, will retry')
         logger.info(f'check_monthly_card {monthly_card}, ret {ret}')
         return ret
 
@@ -351,7 +400,7 @@ class BaseDNATask(BaseTask):
         abs_pos = self.executor.interaction.capture.get_abs_cords(random_x, random_y)
         win32api.SetCursorPos(abs_pos)
     
-    def _perform_random_click(self, x_abs, y_abs, use_safe_move=False, safe_move_box: Union[list[Box], Box, None]=None, down_time=0.0, post_sleep=0.0, after_sleep=0.0):
+    def _perform_random_click(self, x_abs, y_abs, use_safe_move=False, safe_move_box: Union[list[Box], Box, None]=None, down_time=0.0, post_sleep=0.0, after_sleep=0.0, force_background=False):
         x = int(x_abs)
         y = int(y_abs)
 
@@ -361,17 +410,25 @@ class BaseDNATask(BaseTask):
         
         self.sleep(_post_sleep)
 
-        if not self.hwnd.is_foreground():
+        if force_background or not self.hwnd.is_foreground():
             if use_safe_move:
                 _down_time = 0.01 if down_time == 0.0 else down_time
                 self.move_mouse_to_safe_position(boxes=safe_move_box)
-            self.click(x, y, down_time=_down_time)
+            interaction = self.executor.interaction
+            if all(hasattr(interaction, method) for method in ("move", "mouse_down", "mouse_up")):
+                interaction.move(x, y)
+                self.sleep(0.02)
+                try:
+                    interaction.mouse_down(x, y)
+                    self.sleep(_down_time)
+                finally:
+                    interaction.mouse_up()
+            else:
+                self.click(x, y, down_time=_down_time)
             if use_safe_move:
                 self.move_back_from_safe_position()
         else:
-            self.pydirect_interaction.move(x, y)
-            self.sleep(random.uniform(0.08, 0.12))
-            self.pydirect_interaction.click(down_time=_down_time)
+            self.pydirect_interaction.click(x, y, down_time=_down_time)
 
         self.sleep(_after_sleep)
 
@@ -403,7 +460,7 @@ class BaseDNATask(BaseTask):
             after_sleep=after_sleep
         )
     
-    def click_box_random(self, box: Box, down_time=0.0, post_sleep=0.0, after_sleep=0.0, use_safe_move=False, safe_move_box=None, left_extend=0.0, right_extend=0.0, up_extend=0.0, down_extend=0.0):
+    def click_box_random(self, box: Box, down_time=0.0, post_sleep=0.0, after_sleep=0.0, use_safe_move=False, safe_move_box=None, left_extend=0.0, right_extend=0.0, up_extend=0.0, down_extend=0.0, force_background=False):
         le_px = left_extend * self.width
         re_px = right_extend * self.width
         ue_px = up_extend * self.height
@@ -423,7 +480,8 @@ class BaseDNATask(BaseTask):
             safe_move_box=safe_move_box, 
             down_time=down_time,
             post_sleep=post_sleep,
-            after_sleep=after_sleep
+            after_sleep=after_sleep,
+            force_background=force_background,
         )
 
     def click_relative_random(self, x1, y1, x2, y2, down_time=0.0, post_sleep=0.0, after_sleep=0.0, use_safe_move=False, safe_move_box=None):

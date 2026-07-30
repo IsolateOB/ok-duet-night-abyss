@@ -21,6 +21,7 @@ class AutoExploration(DNAOneTimeTask, CommissionsTask, BaseCombatTask):
         self.group_icon = FluentIcon.VIEW
 
         self.setup_commission_config()
+        self.default_config.pop("轮次", None)
 
         self.config_description.update({
             '超时时间': '超时后将发出提示',
@@ -140,9 +141,7 @@ class AutoExploration(DNAOneTimeTask, CommissionsTask, BaseCombatTask):
             self.soundBeep()
 
     def stop_func(self):
-        self.get_round_info()
-        if self.current_round >= self.config.get("轮次", 3):
-            return True
+        pass
 
     def find_serum(self):
         box = self.box_of_screen(0.022, 0.385, 0.032, 0.456, name="serum_icon", hcenter=True)

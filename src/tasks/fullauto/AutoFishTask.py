@@ -444,8 +444,38 @@ class AutoFishTask(DNAOneTimeTask, BaseDNATask):
         self.info_set("当前阶段", "收线")
 
         # wait and press space to collect
-        logger.info(f"等待 {cfg.get('END_WAIT_SPACE', 7.0)}s 结束鱼信息展示...")
-        self.sleep(cfg.get("END_WAIT_SPACE", 7.0))
+        end_wait_space = max(0.0, cfg.get("END_WAIT_SPACE", 7.0))
+        logger.info(f"等待 {end_wait_space}s 结束鱼信息展示...")
+        self.sleep(end_wait_space)
+
+        settle_deadline = time.monotonic() + cfg.get("MAX_END_SEC", 20.0)
+        settlement_absent_since = None
+        settlement_absent_stable_time = 1.0
+        while time.monotonic() < settle_deadline:
+            self.next_frame()
+            now = time.monotonic()
+            has_chance = self.find_fish_chance()[0]
+            has_bite = self.find_fish_bite()[0]
+            has_cast = self.find_fish_cast()[0]
+            self.stats["last_cast_icon_found"] = has_cast
+
+            if not has_chance and not has_bite and not has_cast:
+                if settlement_absent_since is None:
+                    settlement_absent_since = now
+                elif now - settlement_absent_since >= settlement_absent_stable_time:
+                    logger.info("钓鱼图标已稳定消失，视为进入结算画面")
+                    break
+            else:
+                settlement_absent_since = None
+
+            self.sleep(0.5)
+        else:
+            logger.info("ç»“æŸé˜¶æ®µç¡®è®¤å¤±è´¥")
+            return False
+
+        logger.info("进入结算画面，按旧逻辑点击结算画面")
+        self.click_relative_random(0.05, 0.3, 0.4, 0.7)
+        self.sleep(0.5)
 
         # wait and verify
         confirm_deadline = time.monotonic() + cfg.get("MAX_END_SEC", 20.0)
@@ -453,34 +483,38 @@ class AutoFishTask(DNAOneTimeTask, BaseDNATask):
         # 抛竿图标连续稳定确认机制
         stable_confirm_time = 0.5
         cast_appeared_time = None
+        chance_appeared_time = None
 
         while time.monotonic() < confirm_deadline:
+            self.next_frame()
+            now = time.monotonic()
             has_chance = self.find_fish_chance()[0]
-            if has_chance:
-                logger.info("确认已回到挥杆界面（检测到授渔以鱼）")
-                return True
-
-            has_bite = self.find_fish_bite()[0]
-            if has_bite:
-                logger.info("确认已回到挥杆界面（检测到鱼咬钩被遗留）")
-                return True
-
             has_cast = self.find_fish_cast()[0]
+            if has_chance:
+                if chance_appeared_time is None:
+                    chance_appeared_time = now
+                elif now - chance_appeared_time >= stable_confirm_time:
+                    logger.info("界面稳定，确认已回到授渔以鱼界面")
+                    return True
+            else:
+                chance_appeared_time = None
+
             self.stats["last_cast_icon_found"] = has_cast
             if has_cast:
                 if cast_appeared_time is None:
                     # 记录第一次看见抛竿图标的时间
-                    cast_appeared_time = time.monotonic()
-                elif time.monotonic() - cast_appeared_time >= stable_confirm_time:
+                    cast_appeared_time = now
+                elif now - cast_appeared_time >= stable_confirm_time:
                     # 第二次确认：抛竿图标连续显示，非画面闪现
                     logger.info("界面稳定，确认已回到抛竿界面")
                     return True
             else:
                 # 抛竿图标消失，重置判定计时
                 cast_appeared_time = None
+                logger.info("等待抛竿图标重新出现，按旧逻辑点击结算画面")
+                self.click_relative_random(0.05, 0.3, 0.4, 0.7)
 
             # 继续保持点击屏幕左侧用来关闭那些可能无法单纯靠时间等待关闭的层叠UI
-            self.click_relative_random(0.05, 0.3, 0.4, 0.7)
             self.sleep(0.5)
             
         logger.info("结束阶段确认失败")
@@ -544,9 +578,8 @@ class AutoFishTask(DNAOneTimeTask, BaseDNATask):
                 if not self.phase_fight():
                     self.sleep(1.0)
                     continue
-                if not self.phase_end():
+                while not self.phase_end():
                     self.sleep(1.0)
-                    continue
 
                 # 完成一轮
                 self.stats["rounds_completed"] += 1
